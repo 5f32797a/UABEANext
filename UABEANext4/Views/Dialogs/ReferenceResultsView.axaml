@@ -1,0 +1,27 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dlg="using:UABEANext4.ViewModels.Dialogs"
+             xmlns:uaw="using:UABEANext4.AssetWorkspace"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="600"
+             x:Class="UABEANext4.Views.Dialogs.ReferenceResultsView"
+             x:DataType="dlg:ReferenceResultsViewModel">
+  <Grid Margin="10" RowDefinitions="Auto,*">
+    <TextBlock Grid.Row="0" Text="{Binding TargetAsset.DisplayName, StringFormat='References to {0}'}" FontSize="16" FontWeight="Bold" Margin="0,0,0,10" />
+    <ListBox Grid.Row="1" ItemsSource="{Binding Results}">
+      <ListBox.ItemTemplate>
+        <DataTemplate x:DataType="uaw:AssetInst">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0">
+              <TextBlock Text="{Binding DisplayName}" />
+              <TextBlock Text="{Binding FileName}" FontSize="10" Foreground="Gray" />
+              <TextBlock Text="{Binding PathId, StringFormat='PathID: {0}'}" FontSize="10" Foreground="Gray" />
+            </StackPanel>
+            <Button Grid.Column="1" Content="Go" Command="{Binding $parent[UserControl].((dlg:ReferenceResultsViewModel)DataContext).VisitAsset}" CommandParameter="{Binding}" VerticalAlignment="Center" />
+          </Grid>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+  </Grid>
+</UserControl>

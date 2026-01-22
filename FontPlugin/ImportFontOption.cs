@@ -1,15 +1,15 @@
-﻿using AssetsTools.NET.Extra;
+using AssetsTools.NET.Extra;
 using Avalonia.Platform.Storage;
 using System.Text;
 using UABEANext4.AssetWorkspace;
 using UABEANext4.Plugins;
 using UABEANext4.ViewModels.Dialogs;
 
-namespace TextAssetPlugin;
-public class ImportTextAssetPlugin : IUavPluginOption
+namespace FontPlugin;
+public class ImportFontOption : IUavPluginOption
 {
-    public string Name => "Import TextAsset";
-    public string Description => "Imports TextAssets to txt";
+    public string Name => "Import Font";
+    public string Description => "Imports Fonts from ttf/otf";
     public UavPluginMode Options => UavPluginMode.Import;
 
     public bool SupportsSelection(Workspace workspace, UavPluginMode mode, IList<AssetInst> selection)
@@ -19,7 +19,7 @@ public class ImportTextAssetPlugin : IUavPluginOption
             return false;
         }
 
-        var typeId = (int)AssetClassID.TextAsset;
+        var typeId = (int)AssetClassID.Font;
         return selection.All(a => a.TypeId == typeId);
     }
 
@@ -47,7 +47,7 @@ public class ImportTextAssetPlugin : IUavPluginOption
             return false;
         }
 
-        var extensions = new List<string>() { "*" };
+        var extensions = new List<string>() { "ttf", "otf" };
         var batchInfosViewModel = new BatchImportViewModel(workspace, selection.ToList(), dir, extensions);
         if (batchInfosViewModel.DataGridItems.Count == 0)
         {
@@ -69,7 +69,7 @@ public class ImportTextAssetPlugin : IUavPluginOption
 
             try
             {
-                var baseField = workspace.GetBaseField(asset);
+                var baseField = FontHelper.GetByteArrayFont(workspace, asset);
                 if (baseField == null)
                 {
                     errorBuilder.AppendLine($"[{errorAssetName}]: failed to read");
@@ -84,7 +84,7 @@ public class ImportTextAssetPlugin : IUavPluginOption
                 }
 
                 byte[] byteData = File.ReadAllBytes(filePath);
-                baseField["m_Script"].AsByteArray = byteData;
+                baseField["m_FontData.Array"].AsByteArray = byteData;
                 asset.UpdateAssetDataAndRow(workspace, baseField);
             }
             catch (Exception ex)
@@ -107,12 +107,12 @@ public class ImportTextAssetPlugin : IUavPluginOption
     {
         var filePaths = await funcs.ShowOpenFileDialog(new FilePickerOpenOptions()
         {
-            Title = "Load text asset",
+            Title = "Load font file",
             FileTypeFilter = new List<FilePickerFileType>()
             {
-                new("TXT file (*.txt)") { Patterns = ["*.txt"] },
-                new("BYTES file (*.bytes)") { Patterns = ["*.bytes"] },
-                new("All types (*.*)") { Patterns = ["*"] },
+                new("TTF file (*.ttf)") { Patterns = ["*.ttf"] },
+                new("OTF file (*.otf)") { Patterns = ["*.otf"] },
+                new("All types (*.*)")  { Patterns = ["*"] },
             },
             AllowMultiple = false
         });
@@ -132,15 +132,15 @@ public class ImportTextAssetPlugin : IUavPluginOption
         try
         {
             var asset = selection[0];
-            var baseField = workspace.GetBaseField(asset);
+            var baseField = FontHelper.GetByteArrayFont(workspace, asset);
             if (baseField == null)
             {
-                await funcs.ShowMessageDialog("Error", "Failed to read");
+                await funcs.ShowMessageDialog("Error", "Failed to read Font");
                 return false;
             }
 
             byte[] byteData = File.ReadAllBytes(filePath);
-            baseField["m_Script"].AsByteArray = byteData;
+            baseField["m_FontData.Array"].AsByteArray = byteData;
             asset.UpdateAssetDataAndRow(workspace, baseField);
 
             return true;

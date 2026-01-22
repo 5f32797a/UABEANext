@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using System;
@@ -17,6 +18,17 @@ public partial class AssetDocumentView : UserControl
 
         Initialized += AssetDocumentView_Initialized;
         dataGrid.Loaded += DataGrid_Loaded;
+        KeyDown += AssetDocumentView_KeyDown;
+    }
+
+    private void AssetDocumentView_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.F && e.KeyModifiers == KeyModifiers.Control)
+        {
+            var searchTextBox = this.FindControl<TextBox>("searchTextBox");
+            searchTextBox?.Focus();
+            e.Handled = true;
+        }
     }
 
     private void AssetDocumentView_Initialized(object? sender, EventArgs e)

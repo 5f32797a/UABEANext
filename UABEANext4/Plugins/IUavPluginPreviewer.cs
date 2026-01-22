@@ -1,5 +1,6 @@
 ﻿using Avalonia.Media.Imaging;
 using UABEANext4.AssetWorkspace;
+using UABEANext4.Logic.Audio;
 using UABEANext4.Logic.Mesh;
 
 namespace UABEANext4.Plugins;
@@ -13,6 +14,7 @@ public interface IUavPluginPreviewer
     string? ExecuteText(Workspace workspace, IUavPluginFunctions funcs, AssetInst selection, out string? error);
     Bitmap? ExecuteImage(Workspace workspace, IUavPluginFunctions funcs, AssetInst selection, out string? error);
     MeshObj? ExecuteMesh(Workspace workspace, IUavPluginFunctions funcs, AssetInst selection, out string? error);
+    AudioData? ExecuteAudio(Workspace workspace, IUavPluginFunctions funcs, AssetInst selection, out string? error);
 
     // called when the workspace is closing/resetting
     void Cleanup();

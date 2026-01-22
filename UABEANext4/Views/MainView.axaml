@@ -19,6 +19,14 @@
         <MenuItem
           Header="Open Folder" Command="{Binding FileOpenFolder}"
           HotKey="Ctrl+Shift+O" InputGesture="Ctrl+Shift+O" />
+        <MenuItem Header="Open Recent" ItemsSource="{Binding RecentWorkspaces}">
+          <MenuItem.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <MenuItem Header="{Binding}" Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).OpenRecentFile}" CommandParameter="{Binding}" />
+            </DataTemplate>
+          </MenuItem.ItemTemplate>
+        </MenuItem>
+        <MenuItem Header="-" />
         <MenuItem
           Header="Save Selected" Command="{Binding FileSave}"
           HotKey="Ctrl+S" InputGesture="Ctrl+S" />

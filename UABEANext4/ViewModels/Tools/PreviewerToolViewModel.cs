@@ -1,11 +1,15 @@
-﻿using Avalonia.Media.Imaging;
+﻿using AssetsTools.NET;
+using AssetsTools.NET.Extra;
+using Avalonia.Media.Imaging;
 using AvaloniaEdit.Document;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Dock.Model.Mvvm.Controls;
 using System;
 using UABEANext4.AssetWorkspace;
 using UABEANext4.Logic;
+using UABEANext4.Logic.Audio;
 using UABEANext4.Logic.Mesh;
 using UABEANext4.Plugins;
 
@@ -23,7 +27,16 @@ public partial class PreviewerToolViewModel : Tool
     [ObservableProperty]
     public MeshObj? _activeMesh;
     [ObservableProperty]
+    public AudioData? _activeAudio;
+    [ObservableProperty]
     public PreviewerToolPreviewType _activePreviewType = PreviewerToolPreviewType.Text;
+    [ObservableProperty]
+    public bool _isTextureAlphaEnabled = true;
+
+    [ObservableProperty]
+    public AssetInst? _activeAsset;
+
+    public bool IsTextEditorEnabled => ActivePreviewType == PreviewerToolPreviewType.Text && ActiveAsset?.Type == AssetClassID.TextAsset;
 
     // defer this to first preview since dialogs won't exist until after initial load
     private readonly Lazy<UavPluginFunctions> _uavPluginFuncs = new(() => new UavPluginFunctions());
@@ -39,6 +52,7 @@ public partial class PreviewerToolViewModel : Tool
         _activeImage = null;
         _activeDocument = new TextDocument();
         _activeMesh = new MeshObj();
+        _activeAudio = null;
     }
 
     public PreviewerToolViewModel(Workspace workspace)
@@ -69,11 +83,14 @@ public partial class PreviewerToolViewModel : Tool
 
     private void OnWorkspaceClosing(object recipient, WorkspaceClosingMessage message)
     {
+        ActiveAsset = null;
         HandleAssetPreview(null);
     }
 
     private void HandleAssetPreview(AssetInst? asset)
     {
+        ActiveAsset = asset;
+        OnPropertyChanged(nameof(IsTextEditorEnabled));
         if (asset is null)
         {
             SetDisplayText(string.Empty);
@@ -139,6 +156,21 @@ public partial class PreviewerToolViewModel : Tool
                 }
                 break;
             }
+            case UavPluginPreviewerType.Audio:
+            {
+                ActivePreviewType = PreviewerToolPreviewType.Audio;
+
+                var audioData = prev.ExecuteAudio(Workspace, _uavPluginFuncs.Value, asset, out string? error);
+                if (audioData != null)
+                {
+                    ActiveAudio = audioData;
+                }
+                else
+                {
+                    SetDisplayText(error ?? "[null error]");
+                }
+                break;
+            }
             default:
             {
                 SetDisplayText($"Preview type {prevType} not supported.");
@@ -151,6 +183,26 @@ public partial class PreviewerToolViewModel : Tool
     {
         ActivePreviewType = PreviewerToolPreviewType.Text;
         ActiveDocument = new TextDocument(text);
+    }
+
+    public void SaveText()
+    {
+        if (ActiveAsset == null || ActivePreviewType != PreviewerToolPreviewType.Text || ActiveDocument == null)
+            return;
+
+        if (ActiveAsset.Type != AssetClassID.TextAsset)
+            return;
+
+        var text = ActiveDocument.Text;
+        var bytes = System.Text.Encoding.UTF8.GetBytes(text);
+
+        var baseField = Workspace.GetBaseField(ActiveAsset);
+        if (baseField != null)
+        {
+            baseField["m_Script"].AsString = text;
+            ActiveAsset.UpdateAssetDataAndRow(Workspace, baseField);
+            WeakReferenceMessenger.Default.Send(new AssetsUpdatedMessage(ActiveAsset));
+        }
     }
 
     private void DisposeCurrentImage()
@@ -168,4 +220,5 @@ public enum PreviewerToolPreviewType
     Image,
     Text,
     Mesh,
+    Audio,
 }

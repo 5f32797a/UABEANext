@@ -13,8 +13,13 @@ namespace UABEANext4.ViewModels.Dialogs;
 
 public partial class SelectTypeFilterViewModel : ViewModelBase, IDialogAware<IEnumerable<TypeFilterTypeEntry>?>
 {
+    private readonly List<TypeFilterTypeEntry> _allFilterTypes = [];
+    
     [ObservableProperty]
     public ObservableCollection<TypeFilterTypeEntry> _filterTypes = [];
+
+    [ObservableProperty]
+    private string _searchText = string.Empty;
 
     public string Title => "Select Type Filter";
     public int Width => 300;
@@ -23,7 +28,22 @@ public partial class SelectTypeFilterViewModel : ViewModelBase, IDialogAware<IEn
 
     public SelectTypeFilterViewModel(List<TypeFilterTypeEntry> filterTypes)
     {
+        _allFilterTypes.AddRange(filterTypes);
         FilterTypes.AddRange(filterTypes);
+    }
+
+    partial void OnSearchTextChanged(string value)
+    {
+        FilterTypes.Clear();
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            FilterTypes.AddRange(_allFilterTypes);
+        }
+        else
+        {
+            FilterTypes.AddRange(_allFilterTypes.Where(ft => 
+                ft.DisplayText.Contains(value, StringComparison.OrdinalIgnoreCase)));
+        }
     }
 
     public void SelectAll()
@@ -31,6 +51,14 @@ public partial class SelectTypeFilterViewModel : ViewModelBase, IDialogAware<IEn
         foreach (var filterType in FilterTypes)
         {
             filterType.IsSelected = true;
+        }
+    }
+
+    public void InvertSelection()
+    {
+        foreach (var filterType in FilterTypes)
+        {
+            filterType.IsSelected = !filterType.IsSelected;
         }
     }
 
@@ -46,15 +74,15 @@ public partial class SelectTypeFilterViewModel : ViewModelBase, IDialogAware<IEn
     {
         bool includeAllMonoBehaviours = false;
 
-        var monoBehaviourType = FilterTypes.FirstOrDefault(ft => ft.TypeId == 0x72 && ft.ScriptRef is null);
+        var monoBehaviourType = _allFilterTypes.FirstOrDefault(ft => ft.TypeId == 0x72 && ft.ScriptRef is null);
         if (monoBehaviourType is not null)
             includeAllMonoBehaviours = monoBehaviourType.IsSelected;
 
         IEnumerable<TypeFilterTypeEntry> filteredTypes;
         if (includeAllMonoBehaviours)
-            filteredTypes = FilterTypes.Where(ft => ft.IsSelected || ft.ScriptRef is not null);
+            filteredTypes = _allFilterTypes.Where(ft => ft.IsSelected || ft.ScriptRef is not null);
         else
-            filteredTypes = FilterTypes.Where(ft => ft.IsSelected);
+            filteredTypes = _allFilterTypes.Where(ft => ft.IsSelected);
 
         RequestClose?.Invoke(filteredTypes);
     }

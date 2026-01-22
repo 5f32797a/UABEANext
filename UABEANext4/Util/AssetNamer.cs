@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Runtime.CompilerServices;
 using UABEANext4.AssetWorkspace;
+using UABEANext4.Logic.Configuration;
 
 namespace UABEANext4.Util;
 
@@ -274,10 +275,32 @@ public class AssetNamer
 
     public static string GetAssetFileName(Workspace workspace, AssetInst asset, string ext, int maxNameLen)
     {
+        var settings = ConfigurationManager.Settings;
+        var template = settings.ExportFileNameTemplate;
+
         var assetName = workspace.Namer.GetAssetName(asset, false, maxNameLen);
         assetName = GetFallbackName(asset, assetName);
         assetName = PathUtils.ReplaceInvalidPathChars(assetName);
-        return $"{assetName}-{Path.GetFileName(asset.FileInstance.path)}-{asset.PathId}{ext}";
+
+        var typeName = workspace.Namer.GetAssetTypeName(asset, false, maxNameLen);
+        var fileName = Path.GetFileName(asset.FileInstance.path);
+        var pathId = asset.PathId.ToString();
+
+        var result = template
+            .Replace("{name}", assetName)
+            .Replace("{type}", typeName)
+            .Replace("{id}", pathId)
+            .Replace("{file}", fileName);
+
+        result = PathUtils.ReplaceInvalidPathChars(result);
+        
+        if (settings.ExportCategoryByType)
+        {
+            var typeFolder = PathUtils.ReplaceInvalidPathChars(typeName);
+            result = Path.Combine(typeFolder, result);
+        }
+
+        return result + ext;
     }
 
     public static string GetAssetFileName(AssetInst asset, string assetNameOverride, string ext)

@@ -6,8 +6,9 @@
              mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="500"
              x:Class="UABEANext4.Views.Dialogs.SelectTypeFilterView"
              x:DataType="dlg:SelectTypeFilterViewModel">
-  <Grid Margin="10,10,10,10" RowDefinitions="*,50">
-    <ListBox Grid.Row="0" ItemsSource="{Binding FilterTypes}">
+  <Grid Margin="10,10,10,10" RowDefinitions="Auto,*,50">
+    <TextBox Grid.Row="0" Text="{Binding SearchText}" Watermark="Search types..." Margin="0,0,0,5" Name="searchTextBox"/>
+    <ListBox Grid.Row="1" ItemsSource="{Binding FilterTypes}">
       <ListBox.ItemTemplate>
         <DataTemplate>
           <StackPanel Orientation="Horizontal">
@@ -18,12 +19,13 @@
         </DataTemplate>
       </ListBox.ItemTemplate>
     </ListBox>
-    <Grid Grid.Row="1" VerticalAlignment="Bottom"
-          ColumnDefinitions="*,*" RowDefinitions="*,*">
-      <Button Grid.Column="0" Grid.Row="0" Command="{Binding SelectAll}">Select all</Button>
-      <Button Grid.Column="1" Grid.Row="0" Command="{Binding DeselectAll}">Deselect all</Button>
-      <Button Grid.Column="0" Grid.Row="1" Command="{Binding Accept}">Ok</Button>
-      <Button Grid.Column="1" Grid.Row="1" Command="{Binding Cancel}">Cancel</Button>
+    <Grid Grid.Row="2" VerticalAlignment="Bottom"
+          ColumnDefinitions="*,*,*" RowDefinitions="*,*">
+      <Button Grid.Column="0" Grid.Row="0" Command="{Binding SelectAll}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">All</Button>
+      <Button Grid.Column="1" Grid.Row="0" Command="{Binding InvertSelection}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">Invert</Button>
+      <Button Grid.Column="2" Grid.Row="0" Command="{Binding DeselectAll}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">None</Button>
+      <Button Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" Command="{Binding Accept}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">Ok</Button>
+      <Button Grid.Column="2" Grid.Row="1" Command="{Binding Cancel}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">Cancel</Button>
     </Grid>
   </Grid>
 </UserControl>

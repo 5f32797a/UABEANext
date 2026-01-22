@@ -2,9 +2,12 @@
 using CommunityToolkit.Mvvm.Messaging;
 using Dock.Model.Mvvm.Controls;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using UABEANext4.AssetWorkspace;
 using UABEANext4.Logic;
+using UABEANext4.Util;
 
 namespace UABEANext4.ViewModels.Tools;
 public partial class InspectorToolViewModel : Tool
@@ -15,6 +18,8 @@ public partial class InspectorToolViewModel : Tool
 
     [ObservableProperty]
     public ObservableCollection<AssetInst> _activeAssets;
+    [ObservableProperty]
+    public ObservableCollection<AssetInst> _dependencies = new();
 
     [Obsolete("This constructor is for the designer only and should not be used directly.", true)]
     public InspectorToolViewModel()
@@ -46,6 +51,30 @@ public partial class InspectorToolViewModel : Tool
         {
             ActiveAssets.Add(asset);
         }
+        UpdateDependencies();
+    }
+
+    private void UpdateDependencies()
+    {
+        Dependencies.Clear();
+        if (ActiveAssets.Count == 0) return;
+
+        var asset = ActiveAssets[0];
+        var baseField = Workspace.GetBaseField(asset);
+        if (baseField == null) return;
+
+        var pptrs = DependencyUtil.GetDependencies(baseField);
+        var resolved = DependencyUtil.ResolveDependencies(Workspace, asset.FileInstance, pptrs);
+        
+        foreach (var dep in resolved)
+        {
+            Dependencies.Add(dep);
+        }
+    }
+
+    public void VisitDependency(AssetInst asset)
+    {
+        WeakReferenceMessenger.Default.Send(new RequestVisitAssetMessage(asset));
     }
 
     private void OnAssetsUpdated(object recipient, AssetsUpdatedMessage message)

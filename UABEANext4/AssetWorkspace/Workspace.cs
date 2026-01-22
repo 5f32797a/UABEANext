@@ -8,6 +8,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using UABEANext4.Logic.Configuration;
 using UABEANext4.Plugins;
 using UABEANext4.Util;
@@ -143,7 +144,7 @@ public partial class Workspace : ObservableObject
         return item;
     }
 
-    private void FixupAssetsFile(AssetsFileInstance fileInst)
+    internal void FixupAssetsFile(AssetsFileInstance fileInst)
     {
         if (fileInst.file.AssetInfos is not RangeObservableCollection<AssetFileInfo>)
         {
@@ -493,6 +494,46 @@ public partial class Workspace : ObservableObject
         return FindWorkspaceItemBfs(i =>
             i.Object is BundleFileInstance thisBunInst && thisBunInst == bunInst
         );
+    }
+
+    public async Task<List<AssetInst>> FindReferences(AssetInst target, CancellationToken ct)
+    {
+        var results = new List<AssetInst>();
+        var files = WorkspaceItem.GetAssetsFileWorkspaceItems(RootItems)
+            .Select(i => i.Object as AssetsFileInstance)
+            .Where(f => f != null)
+            .ToList();
+
+        int totalFiles = files.Count;
+        await Task.Run(() =>
+        {
+            for (int i = 0; i < totalFiles; i++)
+            {
+                var file = files[i]!;
+                foreach (var info in file.file.AssetInfos)
+                {
+                    if (ct.IsCancellationRequested) return;
+
+                    var asset = info is AssetInst inst ? inst : new AssetInst(file, info);
+                    var baseField = GetBaseField(asset);
+                    if (baseField == null) continue;
+
+                    var pptrs = DependencyUtil.GetDependencies(baseField);
+                    foreach (var pptr in pptrs)
+                    {
+                        var resolved = GetAssetInst(file, pptr.FileId, pptr.PathId);
+                        if (resolved != null && resolved.FileInstance == target.FileInstance && resolved.PathId == target.PathId)
+                        {
+                            results.Add(asset);
+                            break;
+                        }
+                    }
+                }
+                SetProgressThreadSafe((float)(i + 1) / totalFiles, $"Searching references in {file.name}...");
+            }
+        });
+        SetProgressThreadSafe(1f, "Search complete.");
+        return results;
     }
 
     private WorkspaceItem? FindWorkspaceItemBfs(Func<WorkspaceItem, bool> predicate)

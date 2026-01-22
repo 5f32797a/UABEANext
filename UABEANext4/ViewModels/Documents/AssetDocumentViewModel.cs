@@ -2,8 +2,10 @@
 using AssetsTools.NET.Extra;
 using Avalonia.Collections;
 using Avalonia.Platform.Storage;
+using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.DependencyInjection;
+using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Dock.Model.Mvvm.Controls;
 using DynamicData;
@@ -26,6 +28,7 @@ using UABEANext4.Plugins;
 using UABEANext4.Services;
 using UABEANext4.Util;
 using UABEANext4.ViewModels.Dialogs;
+using UABEANext4.Views.Dialogs;
 
 namespace UABEANext4.ViewModels.Documents;
 
@@ -49,6 +52,10 @@ public partial class AssetDocumentViewModel : Document
     public string _searchText = "";
     [ObservableProperty]
     public ObservableCollection<PluginItemInfo> _pluginsItems = [];
+    [ObservableProperty]
+    public string _goToPathIdText = "";
+
+    public List<string> SearchHistory => ConfigurationManager.Settings.SearchHistory;
 
     [ObservableProperty]
     public bool _isSearchCaseSensitive = false;
@@ -106,13 +113,72 @@ public partial class AssetDocumentViewModel : Document
         WeakReferenceMessenger.Default.Register<WorkspaceClosingMessage>(this, (r, h) => _ = OnWorkspaceClosing(r, h));
     }
 
-    partial void OnSearchTextChanged(string value) => _setDataGridFilterDb(value);
+    partial void OnSearchTextChanged(string value)
+    {
+        _setDataGridFilterDb(value);
+        _addToSearchHistoryDb(value);
+    }
+
+    private readonly Action<string> _addToSearchHistoryDb;
+
+    private void AddToSearchHistory(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.StartsWith("@")) return;
+
+        var history = ConfigurationManager.Settings.SearchHistory;
+        if (history.Contains(value))
+        {
+            history.Remove(value);
+        }
+        history.Insert(0, value);
+
+        if (history.Count > 10)
+        {
+            history.RemoveAt(history.Count - 1);
+        }
+        
+        ConfigurationManager.SaveConfig();
+        OnPropertyChanged(nameof(SearchHistory));
+    }
 
     private Func<object, bool> SetDataGridFilter(string searchText)
     {
         var strCmp = IsSearchCaseSensitive
             ? StringComparison.Ordinal
             : StringComparison.OrdinalIgnoreCase;
+
+        if (searchText.StartsWith("@range=") || searchText.StartsWith("@range:"))
+        {
+            var rangePart = searchText[7..];
+            var split = rangePart.Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (split.Length == 2 && long.TryParse(split[0], out long start) && long.TryParse(split[1], out long end))
+            {
+                return o => o is AssetInst a && a.PathId >= start && a.PathId <= end;
+            }
+        }
+
+        if (searchText.StartsWith("@pathid=") || searchText.StartsWith("@pathid:"))
+        {
+            var idPart = searchText[8..];
+            if (long.TryParse(idPart, out long pathId))
+            {
+                return o => o is AssetInst a && a.PathId == pathId;
+            }
+        }
+
+        if (searchText.StartsWith("@type=") || searchText.StartsWith("@type:"))
+        {
+            var typePart = searchText[6..];
+            return o =>
+            {
+                if (o is not AssetInst a) return false;
+                if (ClassIdToString.TryGetValue(a.Type, out string? classIdName))
+                {
+                    return classIdName.Contains(typePart, StringComparison.OrdinalIgnoreCase);
+                }
+                return false;
+            };
+        }
 
         Regex? regex;
         try
@@ -263,6 +329,10 @@ public partial class AssetDocumentViewModel : Document
                     if (loadCt.IsCancellationRequested)
                         loadCt.ThrowIfCancellationRequested();
 
+                    if (fileInst.file.AssetInfos is not RangeObservableCollection<AssetFileInfo>)
+                    {
+                        Workspace.FixupAssetsFile(fileInst);
+                    }
                     var infosObsCol = (RangeObservableCollection<AssetFileInfo>)fileInst.file.Metadata.AssetInfos;
                     sourceList.Add(infosObsCol);
 
@@ -495,25 +565,40 @@ public partial class AssetDocumentViewModel : Document
                 }
                 else
                 {
-                    // handle template read error
+                    exception = "Failed to read template field. This asset might not be supported.";
                 }
             }
             else if (file.EndsWith(".txt"))
             {
                 data = importer.ImportTextAsset(out exception);
             }
+            else
+            {
+                exception = "Unknown file extension.";
+            }
         }
         else //if (file.EndsWith(".dat"))
         {
-            using var stream = File.OpenRead(file);
-            data = importer.ImportRawAsset();
+            try
+            {
+                using var stream = File.OpenRead(file);
+                data = importer.ImportRawAsset();
+                exception = null;
+            }
+            catch (Exception ex)
+            {
+                exception = ex.Message;
+            }
         }
 
         if (data != null)
         {
             asset.UpdateAssetDataAndRow(Workspace, data);
         }
-
+        else
+        {
+            await MessageBoxUtil.ShowDialog("Error", "Failed to import file:\n" + exception);
+        }
         var fileToDirty = Workspace.ItemLookup[asset.FileInstance.name];
         Workspace.Dirty(fileToDirty);
     }
@@ -783,6 +868,79 @@ public partial class AssetDocumentViewModel : Document
     public void SetSelectedItems(List<AssetInst> assets)
     {
         SetSelectedItemsAction?.Invoke(assets);
+    }
+
+    public async void CopyPathId()
+    {
+        if (SelectedItems.Count == 0) return;
+        var text = string.Join("\n", SelectedItems.Select(a => a.PathId));
+        if (Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            if (desktop.MainWindow?.Clipboard is { } clipboard)
+                await clipboard.SetTextAsync(text);
+        }
+    }
+
+    public async void CopyAsPPtr()
+    {
+        if (SelectedItems.Count == 0) return;
+        // relative to the file itself, FileID is 0
+        var text = string.Join("\n", SelectedItems.Select(a => $"[0, {a.PathId}]"));
+        if (Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            if (desktop.MainWindow?.Clipboard is { } clipboard)
+                await clipboard.SetTextAsync(text);
+        }
+    }
+
+    public void GoToPathId()
+    {
+        if (long.TryParse(GoToPathIdText, out long pathId))
+        {
+            var asset = Items.FirstOrDefault(a => a.PathId == pathId);
+            if (asset != null)
+            {
+                SetSelectedItems(new List<AssetInst> { asset });
+            }
+        }
+    }
+
+    public void SetTypeSearch(string typeName)
+    {
+        SearchText = $"@type={typeName}";
+    }
+
+    public void SetSearchText(string text)
+    {
+        SearchText = text;
+    }
+
+    public async void OpenLocalizationValidator()
+    {
+        var selection = SelectedItems;
+        if (selection.Count == 0) return;
+
+        var asset = selection[0];
+        // Only allow for MonoBehaviours (as that's what TMP uses)
+        if (asset.Type != AssetClassID.MonoBehaviour)
+            return;
+
+        var dialogService = Ioc.Default.GetRequiredService<IDialogService>();
+        var vm = new LocalizationValidatorViewModel(Workspace, asset);
+        await dialogService.ShowDialog(vm);
+    }
+
+    public async void FindAllReferences()
+    {
+        if (SelectedItems.Count == 0) return;
+        var target = SelectedItems[0];
+
+        var dialogService = Ioc.Default.GetRequiredService<IDialogService>();
+        var cts = new CancellationTokenSource();
+        
+        var results = await Workspace.FindReferences(target, cts.Token);
+        
+        dialogService.Show(new ReferenceResultsViewModel(Workspace, target, results));
     }
 
     public void OnAssetOpened(List<AssetInst> assets)

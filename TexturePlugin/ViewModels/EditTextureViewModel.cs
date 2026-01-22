@@ -2,6 +2,7 @@
 using AssetsTools.NET.Texture;
 using CommunityToolkit.Mvvm.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using Avalonia.Platform.Storage;
 using UABEANext4.AssetWorkspace;
 using UABEANext4.Interfaces;
 using UABEANext4.Util;
@@ -10,6 +11,10 @@ using ColorSpaceEnm = TexturePlugin.Logic.EditTexture.ColorSpace;
 using FilterModeEnm = TexturePlugin.Logic.EditTexture.FilterMode;
 using TextureFormatEnm = AssetsTools.NET.Texture.TextureFormat;
 using WrapModeEnm = TexturePlugin.Logic.EditTexture.WrapMode;
+using TexturePlugin.Helpers;
+using UABEANext4.Plugins;
+using SkiaSharp;
+using System.IO;
 
 // this could be uh... improved... but it'll work for now :D
 namespace TexturePlugin.ViewModels;
@@ -74,6 +79,14 @@ public partial class EditTextureViewModel : ViewModelBaseValidator, IDialogAware
     private string? _defaultLightMapFormatString;
     private ColorSpaceEnm? _defaultColorSpace;
 
+    // imported data
+    [ObservableProperty]
+    public byte[]? _importedTextureData;
+    [ObservableProperty]
+    public int _importedWidth;
+    [ObservableProperty]
+    public int _importedHeight;
+
     // textbox watermarks
     public string NameWatermark => Name is null ? "(Multiple values)" : "";
     public string FilteringWatermark => FilteringString is null ? "(Multiple values)" : "";
@@ -96,9 +109,11 @@ public partial class EditTextureViewModel : ViewModelBaseValidator, IDialogAware
     public event Action<EditTextureResult?>? RequestClose;
 
     private readonly List<(AssetInst, AssetTypeValueField, TextureFile)> _textures = [];
+    private readonly IUavPluginFunctions _funcs;
 
-    public EditTextureViewModel(Workspace workspace, IList<AssetInst> assets)
+    public EditTextureViewModel(Workspace workspace, IList<AssetInst> assets, IUavPluginFunctions funcs)
     {
+        _funcs = funcs;
         IsSingleTexture = assets.Count == 1;
 
         foreach (var asset in assets)
@@ -273,9 +288,68 @@ public partial class EditTextureViewModel : ViewModelBaseValidator, IDialogAware
                 WrapModeU,
                 WrapModeV,
                 lightMapFormat,
-                ColorSpace
+                ColorSpace,
+                ImportedTextureData,
+                ImportedWidth,
+                ImportedHeight
             )
         );
+    }
+
+    public async Task Load()
+    {
+        var filePaths = await _funcs.ShowOpenFileDialog(new FilePickerOpenOptions()
+        {
+            Title = "Load image",
+            FileTypeFilter = new List<FilePickerFileType>()
+            {
+                new("Image files (*.png, *.tga, *.jpg, *.jpe, *.jpeg, *.bmp)") { Patterns = ["*.png", "*.tga", "*.jpg", "*.jpe", "*.jpeg", "*.bmp"] },
+                new("All types (*.*)")  { Patterns = ["*"] },
+            },
+            AllowMultiple = false
+        });
+
+        if (filePaths == null || filePaths.Length == 0)
+        {
+            return;
+        }
+
+        var filePath = filePaths[0];
+        if (!File.Exists(filePath))
+        {
+            await _funcs.ShowMessageDialog("Error", $"File {filePath} does not exist.");
+            return;
+        }
+
+        try
+        {
+            using var stream = File.OpenRead(filePath);
+            using var bitmap = SKBitmap.Decode(stream);
+            if (bitmap == null)
+            {
+                await _funcs.ShowMessageDialog("Error", "Failed to decode image.");
+                return;
+            }
+
+            // Convert to BGRA8888 if not already
+            if (bitmap.ColorType != SKColorType.Bgra8888)
+            {
+                using var bgraBitmap = new SKBitmap(bitmap.Width, bitmap.Height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+                bitmap.CopyTo(bgraBitmap);
+                ImportedTextureData = bgraBitmap.Bytes;
+            }
+            else
+            {
+                ImportedTextureData = bitmap.Bytes;
+            }
+
+            ImportedWidth = bitmap.Width;
+            ImportedHeight = bitmap.Height;
+        }
+        catch (Exception e)
+        {
+            await _funcs.ShowMessageDialog("Error", $"Failed to load image: {e.Message}");
+        }
     }
 
     public void Cancel()
@@ -310,7 +384,10 @@ public readonly struct EditTextureResult(
     WrapModeEnm? wrapModeU,
     WrapModeEnm? wrapModeV,
     int? lightMapFormat,
-    ColorSpaceEnm? colorSpace)
+    ColorSpaceEnm? colorSpace,
+    byte[]? importedTextureData = null,
+    int importedWidth = 0,
+    int importedHeight = 0)
 {
     public readonly string? Name = name;
     public readonly TextureFormatEnm? TextureFormat = textureFormat;
@@ -323,4 +400,8 @@ public readonly struct EditTextureResult(
     public readonly WrapModeEnm? WrapModeV = wrapModeV;
     public readonly int? LightMapFormat = lightMapFormat;
     public readonly ColorSpaceEnm? ColorSpace = colorSpace;
+
+    public readonly byte[]? ImportedTextureData = importedTextureData;
+    public readonly int ImportedWidth = importedWidth;
+    public readonly int ImportedHeight = importedHeight;
 }

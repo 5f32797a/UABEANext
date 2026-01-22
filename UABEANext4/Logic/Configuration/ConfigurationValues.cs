@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Styling;
 using CommunityToolkit.Mvvm.ComponentModel;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using UABEANext4.Util;
 
@@ -30,6 +31,25 @@ public partial class ConfigurationValues : ObservableObject
     [property: ConfigDesc("Maximum length for the asset name when exporting assets.")]
     [property: ConfigRange(0, int.MaxValue)]
     private int _exportNameLength = 150;
+
+    [ObservableProperty]
+    private List<string> _searchHistory = [];
+
+    [ObservableProperty]
+    [property: ConfigTitle("Export Filename Template")]
+    [property: ConfigDesc("Template for the filename when exporting assets. Tokens: {name}, {type}, {id}, {file}")]
+    private string _exportFileNameTemplate = "{name}-{file}-{id}";
+
+    [ObservableProperty]
+    [property: ConfigTitle("Categorize Export by Type")]
+    [property: ConfigDesc("If enabled, exported assets will be placed in subfolders named after their asset type.")]
+    private bool _exportCategoryByType = false;
+
+    [ObservableProperty]
+    private List<string> _recentWorkspaces = [];
+
+    [ObservableProperty]
+    private List<string> _lastOpenFiles = [];
 
     private readonly Action<int> _saveDebounceFunc = DebounceUtils.Debounce(
         (int _) => ConfigurationManager.SaveConfig(), 500);

@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:UABEANext4.ViewModels.Dialogs"
+             mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="600"
+             x:Class="UABEANext4.Views.Dialogs.LocalizationValidatorView"
+             x:DataType="vm:LocalizationValidatorViewModel">
+  <Grid RowDefinitions="Auto,Auto,*,Auto,*,Auto" Margin="15">
+    <!-- Header -->
+    <TextBlock Grid.Row="0" Text="Localization &amp; Font Validator" FontSize="18" FontWeight="Bold" Margin="0,0,0,10" Foreground="SkyBlue" />
+    
+    <!-- Test Text Input -->
+    <TextBlock Grid.Row="1" Text="Enter text to test char support:" Margin="0,0,0,5" />
+    <TextBox Grid.Row="2" Text="{Binding TestText}" AcceptsReturn="True" TextWrapping="Wrap" Height="100" VerticalContentAlignment="Top" Watermark="Paste your translation text here..." />
+    
+    <!-- Logs -->
+    <TextBlock Grid.Row="3" Text="Validation Logs:" Margin="0,15,0,5" />
+    <ListBox Grid.Row="4" ItemsSource="{Binding Logs}" Background="#2d2d2d" BorderThickness="0">
+      <ListBox.ItemTemplate>
+        <DataTemplate>
+          <TextBlock Text="{Binding}" FontSize="12" FontFamily="Cascadia Code,Consolas,Monospace" />
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+
+    <!-- Missing Characters (Optional expansion if needed, but for now just show in logs or as a list) -->
+    
+    <!-- Action Footer -->
+    <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+      <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Margin="0,0,20,0" Foreground="LightGray" />
+      <Button Content="Validate" Command="{Binding ValidateCommand}" Width="100" HorizontalContentAlignment="Center" Background="#007acc" Foreground="White" />
+      <Button Content="Close" Command="{Binding CloseCommand}" Width="80" Margin="10,0,0,0" HorizontalContentAlignment="Center" />
+    </StackPanel>
+  </Grid>
+</UserControl>

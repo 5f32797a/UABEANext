@@ -8,6 +8,8 @@ using UABEANext4.AssetWorkspace;
 using UABEANext4.Interfaces;
 using UABEANext4.Logic.Configuration;
 using UABEANext4.Util;
+using Avalonia.Collections;
+using System.Collections.ObjectModel;
 
 namespace UABEANext4.ViewModels.Dialogs;
 public partial class BatchImportViewModel : ViewModelBase, IDialogAware<List<ImportBatchInfo>?>
@@ -16,7 +18,21 @@ public partial class BatchImportViewModel : ViewModelBase, IDialogAware<List<Imp
 
     private bool _ignoreListEvents;
 
-    public List<ImportBatchDataGridItem> DataGridItems { get; set; }
+    private string _searchText = string.Empty;
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            if (SetProperty(ref _searchText, value))
+            {
+                DataGridItems.Refresh();
+            }
+        }
+    }
+
+    public DataGridCollectionView DataGridItems { get; set; }
+    private List<ImportBatchDataGridItem> _allDataGridItems;
 
     [ObservableProperty]
     public List<string> _matchingFilesItems;
@@ -35,7 +51,8 @@ public partial class BatchImportViewModel : ViewModelBase, IDialogAware<List<Imp
     {
         _directory = string.Empty;
 
-        DataGridItems = new List<ImportBatchDataGridItem>();
+        _allDataGridItems = new List<ImportBatchDataGridItem>();
+        DataGridItems = new DataGridCollectionView(_allDataGridItems);
         MatchingFilesItems = new List<string>();
     }
 
@@ -69,13 +86,19 @@ public partial class BatchImportViewModel : ViewModelBase, IDialogAware<List<Imp
             if (!anyExtension)
             {
                 matchingFiles = filesInDir
-                    .Where(f => extensions.Any(x => f.EndsWith(gridItem.GetMatchName(x))))
+                    .Where(f => 
+                        extensions.Any(x => f.EndsWith(gridItem.GetMatchName(x))) || 
+                        extensions.Any(x => Path.GetFileName(f).Equals($"{gridItem.Description}.{x}", StringComparison.OrdinalIgnoreCase))
+                    )
                     .Select(f => Path.GetFileName(f)!).ToList();
             }
             else
             {
                 matchingFiles = filesInDir
-                    .Where(f => PathUtils.GetFilePathWithoutExtension(f).EndsWith(gridItem.GetMatchName("*")))
+                    .Where(f => 
+                        PathUtils.GetFilePathWithoutExtension(f).EndsWith(gridItem.GetMatchName("*")) ||
+                        Path.GetFileNameWithoutExtension(f).Equals(gridItem.Description, StringComparison.OrdinalIgnoreCase)
+                    )
                     .Select(f => Path.GetFileName(f)!).ToList();
             }
 
@@ -85,8 +108,40 @@ public partial class BatchImportViewModel : ViewModelBase, IDialogAware<List<Imp
                 gridItems.Add(gridItem);
         }
 
-        DataGridItems = gridItems;
+        _allDataGridItems = gridItems;
+        DataGridItems = new DataGridCollectionView(_allDataGridItems);
+        DataGridItems.Filter = FilterDataGrid;
         MatchingFilesItems = new List<string>();
+    }
+
+    private bool FilterDataGrid(object item)
+    {
+        if (item is not ImportBatchDataGridItem gridItem)
+            return false;
+
+        if (string.IsNullOrWhiteSpace(SearchText))
+            return true;
+
+        return gridItem.Description.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
+               gridItem.File.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
+               gridItem.PathId.ToString().Contains(SearchText);
+    }
+
+    public void SelectAll()
+    {
+        foreach (var item in _allDataGridItems)
+        {
+            if (item.MatchingFiles.Count > 0)
+                item.SelectedIndex = 0;
+        }
+    }
+
+    public void SelectNone()
+    {
+        foreach (var item in _allDataGridItems)
+        {
+            item.SelectedIndex = -1;
+        }
     }
 
     partial void OnDataGridSelectedItemChanged(object? value)
@@ -115,7 +170,7 @@ public partial class BatchImportViewModel : ViewModelBase, IDialogAware<List<Imp
     public void BtnOk_Click()
     {
         List<ImportBatchInfo> importInfos = new List<ImportBatchInfo>();
-        foreach (ImportBatchDataGridItem gridItem in DataGridItems)
+        foreach (ImportBatchDataGridItem gridItem in _allDataGridItems)
         {
             if (gridItem.SelectedIndex != -1)
             {

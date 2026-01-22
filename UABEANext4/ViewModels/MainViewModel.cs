@@ -22,6 +22,7 @@ using UABEANext4.Util;
 using UABEANext4.ViewModels.Dialogs;
 using UABEANext4.ViewModels.Documents;
 using UABEANext4.ViewModels.Tools;
+using UABEANext4.Logic.Configuration;
 
 namespace UABEANext4.ViewModels;
 
@@ -40,6 +41,8 @@ public partial class MainViewModel : ViewModelBase
     public bool _dockPreviewerVisible = true;
     [ObservableProperty]
     public bool _loadContainers = false;
+
+    public List<string> RecentWorkspaces => ConfigurationManager.Settings.RecentWorkspaces;
 
     public Workspace Workspace { get; }
 
@@ -69,6 +72,8 @@ public partial class MainViewModel : ViewModelBase
         _factory.DockableAdded += FactoryDockableAdded;
         _factory.DockableClosed += FactoryDockableClosed;
         _factory.FocusedDockableChanged += FactoryDockableFocused;
+
+        _ = RestoreSession();
     }
 
     // todo: split out
@@ -240,9 +245,24 @@ public partial class MainViewModel : ViewModelBase
                     }
                 }
             });
-            Workspace.SetProgressThreadSafe(1f, "Done");
+            Workspace.ProgressValue = 1f;
+            Workspace.ProgressText = "Done";
             Workspace.ModifyMutex.ReleaseMutex();
         });
+
+        // Update recent history
+        var settings = ConfigurationManager.Settings;
+        foreach (var path in filePaths)
+        {
+            if (settings.RecentWorkspaces.Contains(path))
+                settings.RecentWorkspaces.Remove(path);
+            settings.RecentWorkspaces.Insert(0, path);
+        }
+        if (settings.RecentWorkspaces.Count > 20)
+            settings.RecentWorkspaces = settings.RecentWorkspaces.Take(20).ToList();
+        
+        SaveSession(); // also save currently open files for restore
+        ConfigurationManager.SaveConfig();
 
         if (Workspace.Manager.ClassDatabase == null)
         {
@@ -282,6 +302,34 @@ public partial class MainViewModel : ViewModelBase
                 }
             }
         }
+    }
+
+    public void SaveSession()
+    {
+        var settings = ConfigurationManager.Settings;
+        settings.LastOpenFiles = Workspace.RootItems
+            .Select(i => i.Object switch {
+                AssetsFileInstance afi => afi.path,
+                BundleFileInstance bfi => bfi.path,
+                _ => null
+            })
+            .Where(p => p != null)
+            .ToList()!;
+        ConfigurationManager.SaveConfig();
+    }
+
+    public async Task RestoreSession()
+    {
+        var settings = ConfigurationManager.Settings;
+        if (settings.LastOpenFiles.Count > 0)
+        {
+            await OpenFiles(settings.LastOpenFiles);
+        }
+    }
+
+    public void OpenRecentFile(string path)
+    {
+        _ = OpenFiles(new List<string> { path });
     }
 
     public async void FileOpen()

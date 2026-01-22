@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": ".NET Core Launch (Desktop)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/UABEANext4.Desktop/bin/Debug/net8.0/UABEANext4.Desktop.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/UABEANext4.Desktop",
+      "stopAtEntry": false,
+      "console": "internalConsole"
+    }
+  ]
+}

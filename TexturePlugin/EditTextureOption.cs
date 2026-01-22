@@ -27,7 +27,7 @@ public class EditTextureOption : IUavPluginOption
 
     public async Task<bool> Execute(Workspace workspace, IUavPluginFunctions funcs, UavPluginMode mode, IList<AssetInst> selection)
     {
-        var editTextureVm = new EditTextureViewModel(workspace, selection);
+        var editTextureVm = new EditTextureViewModel(workspace, selection, funcs);
         var result = await funcs.ShowDialog(editTextureVm);
         if (!result.HasValue)
         {
@@ -107,6 +107,14 @@ public class EditTextureOption : IUavPluginOption
             if (editTexSettings.ColorSpace is not null)
                 tex.m_ColorSpace = (int)editTexSettings.ColorSpace.Value;
 
+            if (editTexSettings.ImportedTextureData is not null)
+            {
+                tex.m_Width = editTexSettings.ImportedWidth;
+                tex.m_Height = editTexSettings.ImportedHeight;
+                texOrigDecBytes = editTexSettings.ImportedTextureData;
+                needToReencode = true;
+            }
+
             if (needToReencode && texOrigDecBytes is not null)
             {
                 try
@@ -115,7 +123,7 @@ public class EditTextureOption : IUavPluginOption
                     tex.m_MipCount = 1;
                     tex.m_MipMap = false;
 
-                    tex.EncodeTextureRaw(texOrigDecBytes, tex.m_Width, tex.m_Height, 3, true);
+                    tex.EncodeTextureRaw(texOrigDecBytes, tex.m_Width, tex.m_Height, tex.m_TextureFormat, true);
                 }
                 catch (Exception e)
                 {

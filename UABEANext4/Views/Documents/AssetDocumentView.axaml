@@ -75,9 +75,21 @@
       </Button>
     </UniformGrid>
 
-    <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
-      <TextBox Grid.Column="0" Text="{Binding SearchText}" Watermark="Asset name search" />
-      <Button Grid.Column="1">
+    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto">
+      <TextBox Grid.Column="0" Text="{Binding SearchText}" Watermark="Asset name search" Name="searchTextBox" />
+      <Button Grid.Column="1" ToolTip.Tip="Search history">
+        <Image Source="avares://UABEANext4/Assets/Icons/action-view-info.png" Height="16" />
+        <Button.Flyout>
+          <MenuFlyout ItemsSource="{Binding SearchHistory}">
+            <MenuFlyout.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <MenuItem Header="{Binding}" Command="{Binding $parent[UserControl].((docs:AssetDocumentViewModel)DataContext).SetSearchText}" CommandParameter="{Binding}" />
+              </DataTemplate>
+            </MenuFlyout.ItemTemplate>
+          </MenuFlyout>
+        </Button.Flyout>
+      </Button>
+      <Button Grid.Column="2">
         <StackPanel Orientation="Horizontal">
           <Image Source="avares://UABEANext4/Assets/Icons/action-filter.png" Margin="0,0,3,0" />
           <TextBlock>Search Filters</TextBlock>
@@ -99,6 +111,28 @@
                 <ListBoxItem Tag="Search with regex (slow!)">Regex search</ListBoxItem>
                 <!--<ListBoxItem Tag="Allow searching non-name fields (e.g., $pathid=123, $filename=level0, $type=Transform)">Meta search</ListBoxItem>-->
               </ListBox>
+
+              <Separator Margin="0,5,0,2" />
+
+              <TextBlock Margin="0,5,0,2">Type Quick Filter</TextBlock>
+              <WrapPanel Orientation="Horizontal">
+                <Button Margin="2" Padding="5,2" Command="{Binding SetTypeSearch}" CommandParameter="Texture2D">Texture2D</Button>
+                <Button Margin="2" Padding="5,2" Command="{Binding SetTypeSearch}" CommandParameter="Mesh">Mesh</Button>
+                <Button Margin="2" Padding="5,2" Command="{Binding SetTypeSearch}" CommandParameter="Material">Material</Button>
+                <Button Margin="2" Padding="5,2" Command="{Binding SetTypeSearch}" CommandParameter="Shader">Shader</Button>
+                <Button Margin="2" Padding="5,2" Command="{Binding SetTypeSearch}" CommandParameter="AudioClip">AudioClip</Button>
+                <Button Margin="2" Padding="5,2" Command="{Binding SetTypeSearch}" CommandParameter="MonoBehaviour">MonoBehavior</Button>
+                <Button Margin="2" Padding="5,2" Command="{Binding SetTypeSearch}" CommandParameter="GameObject">GameObject</Button>
+                <Button Margin="2" Padding="5,2" Command="{Binding SetTypeSearch}" CommandParameter="Transform">Transform</Button>
+              </WrapPanel>
+
+              <Separator Margin="0,5,0,2" />
+
+              <TextBlock Margin="0,5,0,2">Go to Path ID</TextBlock>
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Grid.Column="0" Text="{Binding GoToPathIdText}" Watermark="Path ID" />
+                <Button Grid.Column="1" Command="{Binding GoToPathId}">Go</Button>
+              </Grid>
             </StackPanel>
           </Flyout>
         </Button.Flyout>
@@ -109,6 +143,18 @@
       Grid.Row="2" AutoGenerateColumns="False" CanUserResizeColumns="True" CanUserReorderColumns="True"
       IsReadOnly="True" ItemsSource="{Binding CollectionView}" x:DataType="docs:AssetDocumentViewModel"
       SelectionChanged="DataGrid_SelectionChanged" Margin="0,0,0,0" Name="dataGrid">
+      <DataGrid.ContextMenu>
+        <ContextMenu>
+          <MenuItem Header="Copy Path ID" Command="{Binding CopyPathId}" />
+          <MenuItem Header="Copy as PPtr" Command="{Binding CopyAsPPtr}" />
+          <Separator />
+          <MenuItem Header="Find All References" Command="{Binding FindAllReferences}" />
+          <Separator />
+          <MenuItem Header="Validate Font (Localization)" Command="{Binding OpenLocalizationValidator}" />
+          <MenuItem Header="Export" Command="{Binding Export}" />
+          <MenuItem Header="Import" Command="{Binding Import}" />
+        </ContextMenu>
+      </DataGrid.ContextMenu>
       <DataGrid.RowTheme>
         <ControlTheme TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
           <ControlTheme.Children>

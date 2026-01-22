@@ -4,12 +4,30 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:um="using:UABEANext4.Controls"
              xmlns:tools="using:UABEANext4.ViewModels.Tools"
+             xmlns:uaw="using:UABEANext4.AssetWorkspace"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="UABEANext4.Views.Tools.InspectorToolView"
              x:DataType="tools:InspectorToolViewModel">
-  <um:AssetDataTreeView
-    Workspace="{Binding Workspace}"
-    ActiveAssets="{Binding ActiveAssets}"
-    Margin="0,0,0,0">
-  </um:AssetDataTreeView>
+  <TabControl>
+    <TabItem Header="Data">
+      <um:AssetDataTreeView
+        Workspace="{Binding Workspace}"
+        ActiveAssets="{Binding ActiveAssets}"
+        Margin="0,0,0,0">
+      </um:AssetDataTreeView>
+    </TabItem>
+    <TabItem Header="Dependencies">
+      <ListBox ItemsSource="{Binding Dependencies}">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="uaw:AssetInst">
+            <StackPanel Orientation="Horizontal" Spacing="5">
+              <Button Content="Go" Command="{Binding $parent[UserControl].((tools:InspectorToolViewModel)DataContext).VisitDependency}" CommandParameter="{Binding}" Padding="5,2" />
+              <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding PathId, StringFormat='({0})'}" VerticalAlignment="Center" Foreground="Gray" FontSize="10" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </TabItem>
+  </TabControl>
 </UserControl>

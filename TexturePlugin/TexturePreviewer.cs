@@ -3,6 +3,7 @@ using AssetsTools.NET.Texture;
 using Avalonia.Media.Imaging;
 using TexturePlugin.Helpers;
 using UABEANext4.AssetWorkspace;
+using UABEANext4.Logic.Audio;
 using UABEANext4.Logic.Mesh;
 using UABEANext4.Plugins;
 
@@ -50,5 +51,10 @@ public class TexturePreviewer : IUavPluginPreviewer
     public string? ExecuteText(Workspace workspace, IUavPluginFunctions funcs, AssetInst selection, out string? error)
         => throw new InvalidOperationException();
 
+    public AudioData? ExecuteAudio(Workspace workspace, IUavPluginFunctions funcs, AssetInst selection, out string? error)
+    {
+        error = null;
+        return null;
+    }
     public void Cleanup() { }
 }
